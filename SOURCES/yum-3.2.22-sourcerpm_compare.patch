@@ -1,0 +1,47 @@
+--- yum-3.2.22/yum/depsolve.py.orig	2009-03-16 08:59:21.000000000 -0500
++++ yum-3.2.22/yum/depsolve.py	2009-10-16 22:26:31.000000000 -0500
+@@ -79,6 +79,7 @@
+ 
+         self.installedFileRequires = None
+         self.installedUnresolvedFileRequires = None
++        self.installedSourceRPMS = []
+ 
+     def doTsSetup(self):
+         warnings.warn(_('doTsSetup() will go away in a future version of Yum.\n'),
+@@ -1011,6 +1012,12 @@
+                 return False
+             return x.sourcerpm == y.sourcerpm
+ 
++        def _sourcerpm_installed(x):
++            if not hasattr(x, 'sourcerpm'):
++                return False
++            return x.sourcerpm in self.installedSourceRPMS 
++
++
+         def _compare_arch_distance(x, y, req_compare_arch):
+             # take X and Y package objects
+             # determine which has a closer archdistance to compare_arch
+@@ -1038,6 +1045,12 @@
+         pkgresults = {}
+         ipkgresults = {}
+ 
++        # for _sourcerpm_installed() comparison.      
++        for installed_po in self.rpmdb.returnPackages():
++            if installed_po.sourcerpm not in self.installedSourceRPMS:
++                self.installedSourceRPMS.append(installed_po.sourcerpm)
++
++
+         for pkg in pkgs:
+             pkgresults[pkg] = 0
+             if self.rpmdb.contains(pkg.name):
+@@ -1114,6 +1127,10 @@
+                 self.verbose_logger.log(logginglevels.DEBUG_4,
+                     _('common sourcerpm %s and %s' % (po, reqpo)))
+                 pkgresults[po] += 20
++            if _sourcerpm_installed(po):
++                self.verbose_logger.log(logginglevels.DEBUG_4,
++                    _('sourcerpm is installed %s' % po))
++                pkgresults[po] += 20
+             if reqpo:
+                 cpl = _common_prefix_len(po.name, reqpo.name)
+                 if cpl > 2:
